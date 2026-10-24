@@ -1,0 +1,18 @@
+/* Sticks to the bottom of short pages: <main> is a column and the footer takes the leftover space above it. */
+main{display:flex;flex-direction:column;min-height:100vh}.content{width:100%}
+.site-footer{margin-top:auto;background:#fff;border-top:4px solid #e3b44c;color:#426681}
+.footer-grid{display:grid;grid-template-columns:1.4fr 1fr 1.4fr;gap:40px;max-width:1560px;margin:auto;padding:36px 40px 28px}
+.site-footer h2{font-size:17px;color:#005596;margin-bottom:10px}
+.site-footer h3{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#60809b;margin-bottom:14px;font-family:'DM Sans Variable','DM Sans',sans-serif;font-weight:700}
+.site-footer p{font-size:12px;max-width:380px}
+.site-footer ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.site-footer nav button{padding:6px 0;font-size:12px;color:#426681;justify-content:flex-start;transition:color var(--fast,.15s) ease,transform var(--base,.28s) ease}
+.site-footer nav button:hover{color:#005596;transform:translateX(3px);filter:none}
+.footer-notes li{font-size:12px;line-height:1.6;color:#6d8296;padding-left:14px;position:relative;margin-bottom:6px}
+.footer-notes li:before{content:'';position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:#d9af4c}
+.footer-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;max-width:1560px;margin:auto;padding:16px 40px;border-top:1px solid #dfe6ee;font-size:11px;color:#8295a8}
+.footer-bar button{font-size:11px;font-weight:600;color:#005596;padding:6px 10px;border-radius:6px;gap:6px}
+.footer-bar button:hover{background:#edf3fa;filter:none}
+@media(max-width:1150px){.footer-grid{padding:30px 25px 24px;gap:28px}.footer-bar{padding:16px 25px}}
+@media(max-width:800px){.footer-grid{grid-template-columns:1fr 1fr}.footer-grid>section:first-child{grid-column:1/-1}main{min-height:0}}
+@media(max-width:500px){.footer-grid{grid-template-columns:1fr;padding:26px 20px 20px}.footer-bar{padding:14px 20px}}

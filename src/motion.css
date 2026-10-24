@@ -1,0 +1,47 @@
+/* Minimal motion: short, ease-out, transform/opacity only. Loaded last so it layers over the other sheets. */
+:root{--ease:cubic-bezier(.2,.7,.2,1);--fast:.15s;--base:.28s}
+
+/* Hover and press feedback */
+button,.nav,input,select,textarea,.equipment-card,.stat,.slot,tbody tr{transition:background-color var(--fast) ease,border-color var(--fast) ease,color var(--fast) ease,box-shadow var(--base) var(--ease),transform var(--base) var(--ease),filter var(--fast) ease,opacity var(--fast) ease}
+button:active:not(:disabled){transform:scale(.97)}
+.primary:hover:not(:disabled){box-shadow:0 6px 14px #00559633}
+.secondary:hover:not(:disabled){background:#f3f7fc;border-color:#c3d3e6;filter:none}
+.nav:hover:not(.active){background:#f3f6fb;color:#005596;filter:none}
+.nav.active:before{animation:grow-bar .3s var(--ease)}
+tbody tr:hover{background:#f8fafd}
+input:focus,select:focus,textarea:focus{box-shadow:0 0 0 4px #609ac922}
+.slot:hover{transform:scaleY(1.12)}
+
+/* Cards lift slightly */
+.equipment-card:hover,.stat:hover{transform:translateY(-3px);box-shadow:0 10px 24px #0a2a4a14}
+
+/* Page and content entrance */
+.content{animation:rise var(--base) var(--ease) backwards}
+.stat,.equipment-card,.access-summary-card{animation:rise .35s var(--ease) backwards}
+.stat:nth-child(2),.equipment-card:nth-child(2),.access-summary-card:nth-child(2){animation-delay:.05s}
+.stat:nth-child(3),.equipment-card:nth-child(3),.access-summary-card:nth-child(3){animation-delay:.1s}
+.stat:nth-child(4),.equipment-card:nth-child(n+4){animation-delay:.15s}
+.finder-results,.alert,.room-matches button{animation:rise .25s var(--ease) backwards}
+.login-story>*{animation:rise .5s var(--ease) backwards}
+.login-form{animation:rise .5s var(--ease) .1s backwards}
+.timeline-row{animation:fade .3s ease backwards}
+
+/* Dialog and toast */
+dialog[open]{animation:pop .22s var(--ease)}
+dialog[open]::backdrop{animation:fade .2s ease}
+.toast{animation:toast-in .3s var(--ease)}
+
+/* Quiet "live" pulse on the status dot */
+.live-dot{animation:pulse 2.4s ease-in-out infinite}
+
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+@keyframes fade{from{opacity:0}}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.97)}}
+@keyframes toast-in{from{opacity:0;transform:translate(-50%,12px)}}
+@keyframes grow-bar{from{transform:scaleY(0)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #d3a63466}60%{box-shadow:0 0 0 6px #d3a63400}}
+
+@media(prefers-reduced-motion:reduce){
+ *,*::before,*::after{animation:none!important;transition-duration:.01ms!important}
+ button:active:not(:disabled),.equipment-card:hover,.stat:hover,.slot:hover{transform:none}
+}

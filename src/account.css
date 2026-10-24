@@ -6,3 +6,14 @@
 .topbar>div:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .topbar{gap:12px;position:sticky;top:0;z-index:20}
 @media(max-width:800px){.sidebar .profile{display:none}.sign-out-button{padding:8px 11px}.topbar{min-height:60px;height:auto;padding-top:6px;padding-bottom:6px}}
+/* Fixed sidebar must never clip its content on short screens: scroll it, and drop the decorative note first. */
+@media(min-width:801px){
+.sidebar{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.sidebar-note,.profile{flex-shrink:0}
+}
+@media(min-width:801px) and (max-height:860px){.workspace{margin-top:16px}.nav-label{margin:20px 12px 10px}.sidebar nav{gap:4px}.sidebar-note{padding-top:16px;padding-bottom:12px}.sidebar-note h4{margin:8px 0 0}.sidebar-note p,.sidebar-note>span{display:none}}
+@media(min-width:801px) and (max-height:700px){.sidebar-note{display:none}.workspace{margin-top:16px}.nav-label{margin:18px 12px 10px}}
+/* Keyboard users can jump past the sidebar; the main landmark takes focus without a ring. */
+.skip-link{position:absolute;left:12px;top:-60px;z-index:200;padding:10px 16px;border-radius:7px;background:#005596;color:#fff;font-size:13px;font-weight:600;transition:top .15s ease}
+.skip-link:focus{top:12px}
+main:focus{outline:none}
