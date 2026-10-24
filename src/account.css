@@ -1,0 +1,8 @@
+/* Keep account exit visible without depending on sidebar height or an icon alone. */
+.account-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.sign-out-button{min-height:44px;padding:10px 14px;border:1px solid #dfe6ee;border-radius:7px;background:#fff;color:#005596;font-size:12px;font-weight:600;white-space:nowrap}
+.sign-out-button:hover:not(:disabled){background:#edf3fa}
+.sign-out-button:focus-visible{outline:3px solid #e3b44c;outline-offset:3px}
+.topbar>div:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar{gap:12px;position:sticky;top:0;z-index:20}
+@media(max-width:800px){.sidebar .profile{display:none}.sign-out-button{padding:8px 11px}.topbar{min-height:60px;height:auto;padding-top:6px;padding-bottom:6px}}
