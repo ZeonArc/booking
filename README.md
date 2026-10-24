@@ -4,6 +4,8 @@ For today's college presentation, use **[the five-minute script and faculty Q&A]
 
 New presentation features: a server-validated free-room finder on Lab rooms; editable biotechnology specialization fields in Manage labs; purpose categories on booking requests and review; and a Reports screen with date/type/status/purpose filters, approved reserved hours and CSV download. Exports use only records the signed-in user is allowed to see. Spreadsheet formula prefixes are neutralized in exported text.
 
+Latest additions: [student access tracking](#student-access-tracking) (individual or lab/group access, requested headcount, project title and booking duration, with summaries on the booking lists and Reports) and a labelled **Sign out** button that stays visible in the top bar at every screen width.
+
 ## SRM Trichy room booking
 
 The **Lab rooms** catalogue now contains the campus inventory supplied by the user: CS Lab 1–6; AR/VR Lab; Mac Lab; EEE Lab; ECE Lab; IoT Lab; Mechanical Workshop; Woodworking Workshop; Physics Lab; Chemistry Lab 1–2; and six Biotechnology labs. Total: **22 rooms**. The six biotechnology specialization labels are proposed and editable: Molecular Biology, Microbiology, Biochemistry, Cell Culture, Genetics and Bioinformatics. Building numbers, capacities, workstation counts and room assignments have not been supplied and are not invented. Reference codes are application labels, not official room numbers.
@@ -54,6 +56,8 @@ These are fictional local demo accounts, not SRM accounts. Registration always c
 - Required rejection and administrative cancellation reasons. Immutable action records retain actor, timestamp and note.
 - Booking details, audit history, date/equipment/status filters and administrator researcher filtering.
 - Accessible labelled forms, native modal focus management, status messages, errors, confirmations and empty states.
+- Student access tracking: individual or lab/group access, requested headcount, project titles for project work, duration preview, access filters and summary cards.
+- A labelled Sign out button in the top bar with a 44 px touch target; a failed sign-out keeps the session and shows the error so the user can retry.
 
 ## Architecture and source map
 
@@ -80,7 +84,7 @@ Creation and approval checks execute inside `BEGIN IMMEDIATE` transactions. Sync
 |---|---|
 | users | integer PK, unique email, name, constrained role, salt and password hash |
 | equipment | integer PK, name/category/model/location/description, positive quantity, constrained status |
-| bookings | integer PK; user/equipment FKs; UTC start/end; purpose; constrained status; creation timestamp |
+| bookings | integer PK; user/equipment FKs; UTC start/end; purpose and purpose category; constrained status; creation timestamp; access type (`individual`/`lab`), student count (1–200) and project title, left empty for records created before access tracking |
 | events | integer PK; booking/actor FKs; action; note; UTC timestamp |
 | sessions | random token PK; user FK; expiry |
 | migrations | applied migration name PK |
@@ -104,7 +108,9 @@ npm test
 npm run build
 ```
 
-The API suite covers registration, invalid credentials, authorization, inventory management, time validation, overlap and adjacency, concurrent requests, approval rechecks, reasons, cancellation/rebooking, privacy, logout, and database reopen persistence. It does not touch `data/lab.sqlite`.
+The API suite covers registration, invalid credentials, authorization, inventory management, time validation, overlap and adjacency, concurrent requests, approval rechecks, reasons, cancellation/rebooking, privacy, logout, and database reopen persistence. `tests/access.test.js` covers access validation, the practical-rescue headcount handoff, summary arithmetic, CSV columns, the additive migration and access-detail privacy. `npm test` reports 37 passing tests. It does not touch `data/lab.sqlite`.
+
+Optional isolated browser smoke for sign-out (requires Edge and Playwright): `node presentation/check-sign-out.mjs <path-to-playwright>`. It checks the button at 1440 px, 390 px and 320 px widths, the 44 px touch target, failure and retry, keyboard activation and session revocation.
 
 ## Five-hour implementation plan
 
@@ -136,6 +142,27 @@ Capacities and capabilities are explicitly unverified demo fixtures in `shared/p
 
 Presentation walkthrough, speaking notes and Q&A: [Save My Practical](docs/SAVE-MY-PRACTICAL.md). Screenshots: `docs/save-my-practical-desktop.png` and `docs/save-my-practical-mobile.png` (captured using an isolated in-memory demo database). Automated coverage: `tests/practical.test.js`; optional isolated browser smoke: `node presentation/check-practical.mjs <path-to-playwright>` (requires Edge and Playwright).
 
+## Student access tracking
+
+Every new booking request records **who needs the resource**:
+
+- **Access type.** *Individual access* is for exactly one student and works for rooms or equipment. *Lab / group access* is for a group and is offered only for lab rooms and workshops.
+- **Number of students.** The requested headcount, a whole number from 1 to 200. Individual access is fixed at 1. The form asks requesters to include themselves if they take part.
+- **Project title.** Required (3–120 characters) when the purpose category is *Project work*; not stored for other categories.
+- **Duration.** The form previews the requested duration (for example "2 h 30 min") as the times change. Durations are calculated from start and end, not stored separately.
+
+Bookings handed over from Save My Practical are always lab/group access, and their headcount must match the class size used in the plan.
+
+**My bookings**, **All bookings** and **Approvals** add access-type and purpose filters. Above the list, a summary shows three cards: Individual access, Lab / group access, and Project work. Each card shows requests, pending requests, distinct requester accounts, student participations requested, total requested duration and approved reserved duration. **Reports** adds the same access filter, summary and an access column, and the CSV export adds *Access type*, *Student count*, *Project title* and *Duration (minutes)*. Coordinators see access details in review; a researcher sees them only on their own bookings, and the shared availability feed never includes them.
+
+How to read the numbers:
+
+- Participation totals add up the headcount on each request, so a student in two sessions is counted twice. Requester accounts are not a roster of participants.
+- Durations are booking hours, not student-hours or measured attendance.
+- Project work overlaps the two access-type cards; do not add the three cards together.
+
+Upgrading an existing database is additive: on the next start the server adds three nullable columns and changes nothing else. Bookings made before this feature show **Not recorded** and are never assigned a guessed headcount. API clients that omit all three fields still work and create unclassified records. Restart `npm start` after pulling this change so the migration runs.
+
 ## General limitations
 
 - This is a local academic prototype with openly documented seed passwords, not a production SRM service.
@@ -143,5 +170,5 @@ Presentation walkthrough, speaking notes and Q&A: [Save My Practical](docs/SAVE-
 - Bookings are same-day, future-starting and at most eight hours. Pending/approved bookings can be cancelled until their end time; completed records cannot be altered. Approved bookings are not automatically cancelled when an instrument is put into maintenance; coordinators should review and cancel affected bookings.
 - All laboratory dates use Asia/Kolkata. Seed bookings use tomorrow relative to first launch; tests generate their own future dates.
 - Dashboard totals are scoped to the signed-in user's visible bookings; administrators see all. The scrollable availability timeline shows all rooms from 08:00–18:00; the full inventory is bookable through the catalogue.
-- No email delivery, password recovery, recurring reservations, SSO, file uploads or multi-campus tenancy. Reports support date, type, status and purpose filters plus CSV export of the visible records. Approved reserved hours are planned durations, not measured attendance or actual utilization.
+- No email delivery, password recovery, recurring reservations, SSO, file uploads or multi-campus tenancy. Reports support date, type, status, purpose and access-type filters plus CSV export of the visible records. Student counts are requested headcounts entered by the requester, not verified rosters. Approved reserved hours are planned durations, not measured attendance or actual utilization.
 - SQLite and synchronous password hashing suit a small demonstration. A production rollout needs institution-provided inventory, account provisioning, abuse controls for registration, HTTPS, backups, monitoring, pagination and load testing.

@@ -4,6 +4,10 @@
 
 Open **Lab rooms** and verify 22 rooms: six biotechnology labs, six CS labs, AR/VR, Mac, EEE, ECE, IoT, Mechanical Workshop, Woodworking Workshop, Physics and two Chemistry labs. Reserve CS Lab 1 for an unused future 10:00–11:00 interval with a class/team and activity in Booking reason. Verify the same room rejects 10:30–11:30, accepts 11:00–12:00, and CS Lab 2 accepts 10:00–11:00. Sign in as coordinator; review the reason in Approvals, approve the request, and inspect its audit history. Cancel with a reason and rebook the released interval. In Manage labs, put a room into maintenance and verify new requests/approval are blocked, then restore availability. All changes persist after restarting.
 
+## Student access tracking
+
+Reserve CS Lab 3 for a future 10:00–12:30 interval with **Lab / group access**, 25 students, purpose category **Project work** and project title "Smart irrigation prototype". While choosing times, the form shows "Requested duration: 2 h 30 min". Open My bookings: the row shows Lab / group access, 25 students, 2 h 30 min and the project title, and the Lab / group and Project work summary cards include it. Filter by access type, then open Reports and download the CSV; it contains the Access type, Student count, Project title and Duration (minutes) columns. Switch the access type to Individual: the student count locks to 1. Choose Equipment as the booking type: only Individual access is offered. Records created before this feature show "Not recorded".
+
 ## Repeatable setup
 
 Run `npm test` for an isolated, reproducible suite that creates and removes its own temporary database. The manual demo uses the persistent local database. Pick a future date with no microscope reservations (ten days ahead works on a fresh seed); use another unused date if repeating the demo. Seed data has ten instruments and pending/approved/rejected/cancelled examples.
@@ -26,6 +30,9 @@ For a fresh demo without losing previous records, stop the server, **rename** th
 
 - [ ] Register a new account and sign in. A duplicate email and password shorter than 10 characters are rejected.
 - [ ] Wrong password returns a clear error. Sign-out prevents subsequent API access.
+- [ ] The labelled Sign out button stays visible in the top bar on desktop and at 390 px and 320 px widths, and works from the keyboard.
+- [ ] Individual access locks the student count to 1; lab / group access is offered only for rooms; Project work requires a project title.
+- [ ] Access filters and summary cards on My bookings, All bookings, Approvals and Reports match the visible rows; older bookings show "Not recorded".
 - [ ] Researcher navigation excludes approvals and inventory; protected API routes reject researcher calls.
 - [ ] Search matches name/model/location; category and availability filters combine correctly.
 - [ ] Maintenance and unavailable equipment cannot be booked.
@@ -45,4 +52,4 @@ For a fresh demo without losing previous records, stop the server, **rename** th
 
 ## Automated evidence
 
-`npm test` currently reports 26 passing results across the booking, room, biotechnology, availability, migration and CSV tests. Tests use real HTTP requests, two independently signed-in users, a coordinator, and a disk-backed temporary SQLite database. The approval-conflict test deliberately creates impossible-via-API overlapping records to prove defense against legacy/inconsistent data. Reopening SQLite verifies durable cancellation and audit events.
+`npm test` currently reports 37 passing results across the booking, room, biotechnology, availability, Save My Practical, student access, migration and CSV tests. Tests use real HTTP requests, two independently signed-in users, a coordinator, and a disk-backed temporary SQLite database. The approval-conflict test deliberately creates impossible-via-API overlapping records to prove defense against legacy/inconsistent data. Reopening SQLite verifies durable cancellation and audit events.
