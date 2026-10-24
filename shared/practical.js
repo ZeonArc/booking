@@ -22,7 +22,8 @@ export const DEMO_PROFILES = {
 const fail=message=>{throw Object.assign(new Error(message),{status:400});};
 export function profileFor(room){
   const p=room.kind==='room'&&Object.hasOwn(DEMO_PROFILES,room.model)?DEMO_PROFILES[room.model]:null;
-  return p?{capacity:p[0],capabilities:p[1],source:'demo'}:null;
+  // Supplied workstation counts replace the demo seat guess; one student works at one system.
+  return p?{capacity:room.systems>0?room.systems:p[0],capabilities:p[1],source:room.systems>0?'systems':'demo'}:null;
 }
 export function validateRequirements(input){
   if(!input||!ACTIVITIES.some(a=>a.id===input.activity))fail('Choose a supported practical activity');

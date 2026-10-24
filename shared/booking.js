@@ -18,7 +18,7 @@ export function validateInterval(startValue,endValue,now=Date.now()) {
 // Quote all fields and neutralize spreadsheet formula prefixes in untrusted text.
 export function bookingsCsv(rows){
   const cell=value=>{let text=String(value??'');if(/^[\s]*[=+@-]/.test(text)||/^[\t\r\n]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';};
-  const fields=['Booking ID','Resource','Type','Requester','Start (UTC)','End (UTC)','Purpose category','Booking reason','Status','Created (UTC)','Access type','Student count','Project title','Duration (minutes)'];
-  const data=rows.map(b=>[b.id,b.equipment_name,b.resource_kind,b.user_name,b.start,b.end,b.purpose_category||'Other',b.purpose,b.status,b.created_at,accessLabel(b.access_type),b.student_count??'Not recorded',b.project_title||'',durationMinutes(b.start,b.end)]);
+  const fields=['Booking ID','Resource','Type','Requester','Start (UTC)','End (UTC)','Purpose category','Booking reason','Status','Created (UTC)','Access type','Student count','Project title','Duration (minutes)','System number'];
+  const data=rows.map(b=>[b.id,b.equipment_name,b.resource_kind,b.user_name,b.start,b.end,b.purpose_category||'Other',b.purpose,b.status,b.created_at,accessLabel(b.access_type),b.student_count??'Not recorded',b.project_title||'',durationMinutes(b.start,b.end),b.system_number??'']);
   return '\uFEFF'+[fields,...data].map(row=>row.map(cell).join(',')).join('\r\n');
 }

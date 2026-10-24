@@ -6,7 +6,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {PURPOSE_CATEGORIES,validateInterval} from './shared/booking.js';
-import {validateAccess} from './shared/access.js';
+import {validateAccess,validateSystem} from './shared/access.js';
 import {ACTIVITIES,profileFor,planPractical,validatePracticalRoom} from './shared/practical.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -84,9 +84,22 @@ export function createApp(dbPath = ':memory:') {
   if(!bookingColumns.includes('access_type'))db.exec("ALTER TABLE bookings ADD COLUMN access_type TEXT CHECK(access_type IN ('individual','lab'))");
   if(!bookingColumns.includes('student_count'))db.exec('ALTER TABLE bookings ADD COLUMN student_count INTEGER CHECK(student_count BETWEEN 1 AND 200)');
   if(!bookingColumns.includes('project_title'))db.exec("ALTER TABLE bookings ADD COLUMN project_title TEXT NOT NULL DEFAULT ''");
+  // Individual access in a lab books one numbered system; whole-room bookings leave system_number empty.
+  if(!db.prepare('PRAGMA table_info(equipment)').all().some(c=>c.name==='systems')) db.exec('ALTER TABLE equipment ADD COLUMN systems INTEGER NOT NULL DEFAULT 0 CHECK(systems BETWEEN 0 AND 500)');
+  if(!bookingColumns.includes('system_number')) db.exec('ALTER TABLE bookings ADD COLUMN system_number INTEGER CHECK(system_number BETWEEN 1 AND 500)');
+  // Workstation counts supplied for the campus. Applied once, so later coordinator edits are never overwritten.
+  if(!db.prepare('SELECT name FROM migrations WHERE name=?').get('lab-systems-v1')) {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const counts={'CS-1':70,'CS-2':70,'CS-3':70,'CS-4':70,'CS-5':70,'CS-6':70,ARVR:40,MAC:40};
+      for(const [code,count] of Object.entries(counts)) db.prepare("UPDATE equipment SET systems=? WHERE kind='room' AND model=? AND systems=0").run(count,code);
+      db.prepare('INSERT INTO migrations VALUES(?)').run('lab-systems-v1');db.exec('COMMIT');
+    }catch(e){db.exec('ROLLBACK');throw e;}
+  }
   const fail = (status,message) => { throw Object.assign(new Error(message),{status}); };
   const transaction = fn => { db.exec('BEGIN IMMEDIATE'); try { const result=fn(); db.exec('COMMIT'); return result; } catch(e) { db.exec('ROLLBACK'); throw e; } };
-  const conflict = (equipment,start,end,exclude=0) => db.prepare("SELECT id FROM bookings WHERE equipment_id=? AND status IN ('pending','approved') AND start < ? AND end > ? AND id != ?").get(equipment,end,start,exclude);
+  // A whole-room request (system null) conflicts with everything; a system request only with the whole room or the same system.
+  const conflict = (equipment,start,end,exclude=0,system=null) => db.prepare("SELECT id FROM bookings WHERE equipment_id=? AND status IN ('pending','approved') AND start < ? AND end > ? AND id != ? AND (? IS NULL OR system_number IS NULL OR system_number=?)").get(equipment,end,start,exclude,system,system);
   const event = (id,actor,action,note='') => db.prepare('INSERT INTO events(booking_id,actor_id,action,note,created_at) VALUES(?,?,?,?,?)').run(id,actor,action,note,new Date().toISOString());
   const app=express();
   app.disable('x-powered-by');
@@ -157,8 +170,30 @@ export function createApp(dbPath = ':memory:') {
       }
       if(route==='/api/rooms/available' && req.method==='GET') {
         const {start,end}=validateInterval(url.searchParams.get('start'),url.searchParams.get('end'));
-        const rooms=db.prepare("SELECT e.* FROM equipment e WHERE e.kind='room' AND e.status='available' AND NOT EXISTS (SELECT 1 FROM bookings b WHERE b.equipment_id=e.id AND b.status IN ('pending','approved') AND b.start < ? AND b.end > ?) ORDER BY e.id").all(end,start);
+        // A lab with numbered systems stays listed while any system is free; whole_room_free says if a group could take all of it.
+        const busy=db.prepare("SELECT equipment_id,system_number FROM bookings WHERE status IN ('pending','approved') AND start < ? AND end > ?").all(end,start);
+        const rooms=[];
+        for(const room of db.prepare("SELECT * FROM equipment WHERE kind='room' AND status='available' ORDER BY id").all()) {
+          const used=busy.filter(b=>b.equipment_id===room.id);
+          if(!used.length) {rooms.push({...room,whole_room_free:true,free_systems:room.systems});continue;}
+          if(room.systems>0 && used.every(b=>b.system_number!=null)) {
+            const free=Math.max(0,room.systems-new Set(used.map(b=>b.system_number)).size);
+            if(free>0) rooms.push({...room,whole_room_free:false,free_systems:free});
+          }
+        }
         return send(200,{start,end,rooms});
+      }
+      const systemsRoute=route.match(/^\/api\/rooms\/(\d+)\/systems$/);
+      if(systemsRoute && req.method==='GET') {
+        const room=db.prepare("SELECT * FROM equipment WHERE id=? AND kind='room'").get(Number(systemsRoute[1]));
+        if(!room) fail(404,'Room not found');
+        const {start,end}=validateInterval(url.searchParams.get('start'),url.searchParams.get('end'));
+        // Only numbers and ownership leave the server: who else booked a system stays private.
+        const used=db.prepare("SELECT system_number,user_id FROM bookings WHERE equipment_id=? AND status IN ('pending','approved') AND start < ? AND end > ?").all(room.id,end,start);
+        const wholeRoomBooked=used.some(b=>b.system_number==null);
+        const taken=new Map(used.filter(b=>b.system_number!=null).map(b=>[b.system_number,b.user_id]));
+        const systems=Array.from({length:room.systems},(_,i)=>{const number=i+1;return {number,status:wholeRoomBooked||room.status!=='available'?'blocked':!taken.has(number)?'free':taken.get(number)===user.id?'yours':'booked'};});
+        return send(200,{room:{id:room.id,name:room.name,status:room.status,systems:room.systems},start,end,wholeRoomBooked,free:systems.filter(s=>s.status==='free').length,systems});
       }
       if(route==='/api/logout' && req.method==='POST') { db.prepare('DELETE FROM sessions WHERE token=?').run(token);res.setHeader('Set-Cookie','session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return send(200,{ok:true}); }
       if(route==='/api/equipment' && req.method==='GET') return send(200,db.prepare('SELECT * FROM equipment WHERE kind=?').all(roomRoute?'room':'equipment'));
@@ -169,17 +204,21 @@ export function createApp(dbPath = ':memory:') {
         if(!Number.isInteger(body.quantity)||body.quantity<1||body.quantity>1000) fail(400,'Quantity must be between 1 and 1000');
         const values=['name','category','location','model','description'].map(k=>body[k].trim());
         if(roomRoute && body.quantity!==1) fail(400,'A room is one exclusively bookable space');
+        const systems=roomRoute?(body.systems??0):0;
+        if(!Number.isInteger(systems)||systems<0||systems>500) fail(400,'Systems must be a whole number from 0 to 500');
         const specialization=body.specialization??'';
         if(typeof specialization!=='string'||specialization.length>120)fail(400,'Specialization must be at most 120 characters');
-        if(req.method==='POST') {const result=db.prepare('INSERT INTO equipment(name,category,location,model,description,quantity,status,kind,specialization) VALUES(?,?,?,?,?,?,?,?,?)').run(...values,body.quantity,body.status,roomRoute?'room':'equipment',specialization.trim());return send(201,{id:Number(result.lastInsertRowid)});}
+        if(req.method==='POST') {const result=db.prepare('INSERT INTO equipment(name,category,location,model,description,quantity,status,kind,specialization,systems) VALUES(?,?,?,?,?,?,?,?,?,?)').run(...values,body.quantity,body.status,roomRoute?'room':'equipment',specialization.trim(),systems);return send(201,{id:Number(result.lastInsertRowid)});}
         const id=Number(route.split('/').pop());
         if(!db.prepare('SELECT id FROM equipment WHERE id=? AND kind=?').get(id,roomRoute?'room':'equipment')) fail(404,'Resource not found');
-        db.prepare('UPDATE equipment SET name=?,category=?,location=?,model=?,description=?,quantity=?,status=?,specialization=? WHERE id=?').run(...values,body.quantity,body.status,specialization.trim(),id);return send(200,{id});
+        const inUse=db.prepare("SELECT MAX(system_number) n FROM bookings WHERE equipment_id=? AND status IN ('pending','approved') AND end>?").get(id,new Date().toISOString()).n;
+        if(roomRoute && inUse>systems) fail(409,`System ${inUse} has an active booking. Cancel it before reducing the number of systems.`);
+        db.prepare('UPDATE equipment SET name=?,category=?,location=?,model=?,description=?,quantity=?,status=?,specialization=?,systems=? WHERE id=?').run(...values,body.quantity,body.status,specialization.trim(),systems,id);return send(200,{id});
       }
       if(route==='/api/admin/dashboard' && req.method==='GET') return send(200,{totalRooms:db.prepare("SELECT COUNT(*) n FROM equipment WHERE kind='room'").get().n,availableRooms:db.prepare("SELECT COUNT(*) n FROM equipment WHERE kind='room' AND status='available'").get().n,totalEquipment:db.prepare('SELECT COUNT(*) n FROM equipment WHERE kind=\'equipment\'').get().n,availableEquipment:db.prepare("SELECT COUNT(*) n FROM equipment WHERE kind='equipment' AND status='available'").get().n,pending:db.prepare("SELECT COUNT(*) n FROM bookings WHERE status='pending'").get().n,approved:db.prepare("SELECT COUNT(*) n FROM bookings WHERE status='approved'").get().n});
       if(route==='/api/admin/bookings/pending' && req.method==='GET') return send(200,db.prepare("SELECT b.*,e.name equipment_name,e.kind resource_kind,u.name user_name FROM bookings b JOIN equipment e ON e.id=b.equipment_id JOIN users u ON u.id=b.user_id WHERE b.status='pending' ORDER BY b.created_at").all());
       if(route==='/api/bookings' && req.method==='GET') return send(200,db.prepare(`SELECT b.*,e.name equipment_name,e.kind resource_kind,u.name user_name FROM bookings b JOIN equipment e ON e.id=b.equipment_id JOIN users u ON u.id=b.user_id ${user.role==='manager'?'':'WHERE b.user_id=?'} ORDER BY b.start DESC`).all(...(user.role==='manager'?[]:[user.id])));
-      if(route==='/api/availability' && req.method==='GET') return send(200,db.prepare("SELECT id,equipment_id,start,end,status FROM bookings WHERE status IN ('pending','approved') ORDER BY start").all());
+      if(route==='/api/availability' && req.method==='GET') return send(200,db.prepare("SELECT id,equipment_id,start,end,status,system_number FROM bookings WHERE status IN ('pending','approved') ORDER BY start").all());
       if(route==='/api/bookings' && req.method==='POST') {
         if(!Number.isSafeInteger(body.equipment_id)||body.equipment_id<1) fail(400,'Choose valid equipment');
         const equipment=db.prepare('SELECT * FROM equipment WHERE id=?').get(Number(body.equipment_id)||0);
@@ -191,9 +230,10 @@ export function createApp(dbPath = ':memory:') {
         const purposeCategory=body.purpose_category??'Other';
         if(!PURPOSE_CATEGORIES.includes(purposeCategory))fail(400,'Choose a valid purpose category');
         const access=validateAccess(body,equipment);
+        const system=validateSystem(body,equipment,access);
         const id=transaction(()=>{
-          if(conflict(equipment.id,start,end)) fail(409,'This time overlaps an existing booking. Choose another slot.');
-          const result=db.prepare("INSERT INTO bookings(user_id,equipment_id,start,end,purpose,status,created_at,purpose_category,access_type,student_count,project_title) VALUES(?,?,?,?,?,'pending',?,?,?,?,?)").run(user.id,equipment.id,start,end,body.purpose.trim(),new Date().toISOString(),purposeCategory,access.access_type,access.student_count,access.project_title);
+          if(conflict(equipment.id,start,end,0,system)) fail(409,system?`System ${system} is not free at this time. Choose another system or slot.`:'This time overlaps an existing booking. Choose another slot.');
+          const result=db.prepare("INSERT INTO bookings(user_id,equipment_id,start,end,purpose,status,created_at,purpose_category,access_type,student_count,project_title,system_number) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,?)").run(user.id,equipment.id,start,end,body.purpose.trim(),new Date().toISOString(),purposeCategory,access.access_type,access.student_count,access.project_title,system);
           event(result.lastInsertRowid,user.id,'created'); return Number(result.lastInsertRowid);
         }); return send(201,{id,status:'pending'});
       }
@@ -214,7 +254,7 @@ export function createApp(dbPath = ':memory:') {
           if((status==='rejected'||(status==='cancelled'&&user.role==='manager')) && (!body.note||!body.note.trim())) fail(400,'Provide a reason for this action');
           transaction(()=>{
             if(status==='approved' && db.prepare('SELECT status FROM equipment WHERE id=?').get(booking.equipment_id).status!=='available') fail(409,'Resource is no longer available');
-            if(status==='approved' && conflict(booking.equipment_id,booking.start,booking.end,booking.id)) fail(409,'Booking conflicts with another reservation');
+            if(status==='approved' && conflict(booking.equipment_id,booking.start,booking.end,booking.id,booking.system_number)) fail(409,'Booking conflicts with another reservation');
             db.prepare('UPDATE bookings SET status=? WHERE id=?').run(status,booking.id);event(booking.id,user.id,status,body.note||'');
           });return send(200,{id:booking.id,status});
         }

@@ -54,7 +54,7 @@ test('authenticated API plans without writes, revalidates stale requests, retain
   const student=(await req('/auth/login','POST',{email:'researcher@lab.test',password:'LabDemo123!'})).cookie;
   const admin=(await req('/auth/login','POST',{email:'manager@lab.test',password:'LabDemo123!'})).cookie;
   const profiles=(await req('/practical/profiles','GET',undefined,student)).data;
-  assert.equal(profiles.rooms.length,22);assert.ok(profiles.rooms.every(r=>r.profile.source==='demo'));
+  assert.equal(profiles.rooms.length,22);assert.ok(profiles.rooms.every(r=>['demo','systems'].includes(r.profile.source)));
   const before=db.prepare('SELECT count(*) n FROM bookings').get().n;
   const result=await req('/practical/plan','POST',{...input,preferredRoom:null},student);
   assert.equal(result.status,200);assert.equal(db.prepare('SELECT count(*) n FROM bookings').get().n,before);
@@ -63,7 +63,7 @@ test('authenticated API plans without writes, revalidates stale requests, retain
   const body={equipment_id:s.room.id,start:s.start,end:s.end,purpose:'Save My Practical: Python for 40 students; demo profile.',purpose_category:'Practical class',practical:{activity:'python',students:40}};
   const created=await req('/bookings','POST',body,student);assert.equal(created.status,201);assert.equal(created.data.status,'pending');
   assert.equal((await req('/bookings','POST',body,student)).status,409);
-  assert.equal((await req('/bookings','POST',{...body,equipment_id:profiles.rooms.find(r=>r.model==='CS-5').id},student)).status,400);
+  assert.equal((await req('/bookings','POST',{...body,practical:{activity:'python',students:80},equipment_id:profiles.rooms.find(r=>r.model==='CS-5').id},student)).status,400);
   assert.equal((await req('/bookings','POST',{...body,equipment_id:profiles.rooms.find(r=>r.model==='PHY').id},student)).status,400);
   assert.equal((await req(`/admin/bookings/${created.data.id}/approve`,'PATCH',{},student)).status,403);
   assert.equal((await req(`/admin/bookings/${created.data.id}/approve`,'PATCH',{},admin)).status,200);

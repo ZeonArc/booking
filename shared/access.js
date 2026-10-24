@@ -27,6 +27,17 @@ export function validateAccess(body,resource){
  if(body.purpose_category==='Project work'&&project.trim().length<3)fail('Enter a project title of at least 3 characters');
  return {access_type:type,student_count:count,project_title:body.purpose_category==='Project work'?project.trim():''};
 }
+// Individual access in a lab with numbered systems books exactly one system; everything else books no system.
+export function validateSystem(body,resource,access){
+ const fail=message=>{throw Object.assign(new Error(message),{status:400});};
+ const value=body.system_number;
+ if(!(resource.kind==='room'&&resource.systems>0&&access.access_type==='individual')){
+  if(value!==undefined&&value!==null)fail('System numbers apply only to individual access in a lab with numbered systems');
+  return null;
+ }
+ if(!Number.isInteger(value)||value<1||value>resource.systems)fail(`Choose one of the ${resource.systems} systems in this lab`);
+ return value;
+}
 export function summarizeAccess(rows){
  const summarize=items=>({requests:items.length,requesters:new Set(items.map(b=>b.user_id).filter(id=>id!=null)).size,
   students:items.reduce((n,b)=>n+(b.student_count??0),0),unknownStudents:items.filter(b=>b.student_count==null).length,

@@ -32,6 +32,16 @@ If none of the three fields is sent (and no `practical` object), the booking is 
 
 Room creation/update accepts an optional `specialization` string, up to 120 characters. Six Biotechnology labs use distinct configurable specialization labels. Booking creation accepts `purpose_category`: `Practical class`, `Project work`, `Research`, `Workshop`, `Training`, `Assessment`, or `Other`. Omission defaults to `Other` for compatibility. The required detailed reason stays in `purpose`. Reports export the authenticated booking data already returned by `/bookings` using frontend date/type/status/category filters; no additional unrestricted export endpoint exists.
 
+## Lab systems
+
+Labs with numbered systems (CS Lab 1–6: 70 each; AR/VR Lab: 40; Mac Lab: 40) expose `systems` on every room returned by `GET /rooms`. Administrators set it with `systems` (integer 0–500) on `POST /rooms` and `PUT /rooms/:id`; omitting it stores 0. Lowering it below a system with an active booking returns 409. Instruments always have `systems: 0`.
+
+**`POST /bookings`** with `access_type: "individual"` for such a lab requires `system_number` (an integer from 1 to the lab's `systems`). It reserves only that system: it conflicts with the same system and with whole-room bookings, never with other systems. `access_type: "lab"`, or a room or instrument without systems, must not send `system_number` (400). A whole-room booking conflicts with any booking, system or not. Conflicts return 409, for example `System 12 is not free at this time. Choose another system or slot.` Approval repeats the same check. `GET /bookings`, `GET /bookings/:id` and the pending queue return `system_number` (null for whole-room bookings).
+
+**`GET /rooms/:id/systems?start=<ISO>&end=<ISO>`** (signed in; same interval rules as booking) returns `{room:{id,name,status,systems}, start, end, wholeRoomBooked, free, systems:[{number, status}]}`. `status` is `free`, `booked` (pending or approved, by anyone else), `yours` (your own active booking) or `blocked` (the whole lab is reserved, or the lab is in maintenance). No names or booking details are included. A room without systems returns an empty list; unknown rooms return 404.
+
+**`GET /rooms/available`** also lists a lab whose only overlapping bookings are single systems while some system is free. Each room carries `whole_room_free` and `free_systems`. A lab with every system booked, or with a whole-room booking, is omitted. **`GET /availability`** includes `system_number` for each interval.
+
 ## Lab rooms
 
 `GET /rooms` lists rooms for signed-in users. Administrators may `POST /rooms` or `PUT /rooms/:id` using `name`, `category` (department), `model` (reference code), `location`, `description`, `quantity: 1`, and `status`. Room IDs and equipment IDs share one unique resource ID space. Existing booking endpoints work for either kind: send the selected room ID in `equipment_id` and a required booking reason in `purpose`. `GET /bookings` and the pending queue include `resource_kind: "room"` or `"equipment"`. The dashboard adds `totalRooms` and `availableRooms`. Unavailable/maintenance rooms cannot receive new requests or approvals.

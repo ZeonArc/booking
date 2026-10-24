@@ -73,12 +73,14 @@ test('access details persist through approval and cancellation without leaking t
   assert.equal((await req('/bookings/'+id,'GET',undefined,other)).status,403);
   assert.ok(!(await req('/bookings','GET',undefined,other)).data.some(b=>b.id===id));
   assert.ok(!(await req('/availability','GET',undefined,other)).data.some(b=>Object.hasOwn(b,'student_count')||Object.hasOwn(b,'project_title')));
-  assert.equal((await req('/bookings','POST',{...body,access_type:'individual',student_count:1},other)).status,409);
+  // CS Lab 1 has numbered systems: individual access must pick one, and a whole-room booking blocks every system.
+  assert.equal((await req('/bookings','POST',{...body,access_type:'individual',student_count:1},other)).status,400);
+  assert.equal((await req('/bookings','POST',{...body,access_type:'individual',student_count:1,system_number:12},other)).status,409);
   assert.equal((await req(`/admin/bookings/${id}/approve`,'PATCH',{},admin)).status,200);
   assert.equal((await req(`/bookings/${id}/cancel`,'PATCH',{},student)).status,200);
   const saved=(await req('/bookings/'+id,'GET',undefined,student)).data;
   assert.equal(saved.student_count,6);assert.equal(saved.project_title,'Smart irrigation');assert.equal(saved.status,'cancelled');
-  const single=await req('/bookings','POST',{...body,access_type:'individual',student_count:1},other);assert.equal(single.status,201);
+  const single=await req('/bookings','POST',{...body,access_type:'individual',student_count:1,system_number:12},other);assert.equal(single.status,201);
   assert.equal((await req('/bookings/'+single.data.id,'GET',undefined,other)).data.student_count,1);
  }finally{await new Promise(r=>server.close(r));db.close();}
 });

@@ -1,0 +1,35 @@
+/* Ticket-style system map: numbered systems in rows, split by an aisle, under a "front of lab" bar. */
+.system-picker{border:1px solid #dfe6ee;border-radius:8px;padding:16px;margin:0 0 18px;background:#f8fafc;min-width:0}
+.system-picker legend{color:#005596;font-size:13px;font-weight:700;padding:0 6px}
+.system-picker .hint{margin:0 0 12px}
+.map-summary{display:flex;align-items:center;gap:8px;font-size:12px;color:#355a7a;margin:8px 0 0}
+.map-summary strong{color:#005596}
+.map-choice{font-size:12px;font-weight:600;color:#005596;margin-top:10px}
+.lab-map{background:#fff;border:1px solid #dfe6ee;border-radius:10px;padding:14px 14px 12px;margin-top:12px}
+.lab-front{margin:0 12% 16px;padding:6px 0;text-align:center;font-size:10px;letter-spacing:3px;font-weight:700;color:#60809b;background:#e4edf8;border-radius:0 0 50% 50%/0 0 100% 100%}
+.seat-row{display:grid;grid-template-columns:14px minmax(0,1fr) minmax(0,1fr);align-items:center;gap:6px 14px;margin-bottom:6px}
+.row-label{width:14px;font-size:10px;font-weight:700;color:#8fa2b6;text-align:center}
+.seat-group{display:flex;gap:5px;min-width:0}
+.seat{flex:1;min-width:0;height:36px;padding:0;border-radius:6px 6px 3px 3px;border:1px solid #b9cde3;background:#fff;color:#005596;font-size:11px;font-weight:600}
+.seat.free:hover{background:#e8f1fb;border-color:#005596;transform:translateY(-2px)}
+.seat.booked,.seat.blocked{background:#e6ebf0;border-color:transparent;color:#8d9cab;cursor:not-allowed;text-decoration:line-through}
+.seat.blocked{background:repeating-linear-gradient(135deg,#eef2f6,#eef2f6 4px,#e4eaf0 4px,#e4eaf0 8px)}
+.seat.yours{background:#fff3d9;border-color:#e3b44c;color:#8f6e20;cursor:not-allowed}
+.seat.selected{background:#005596;border-color:#005596;color:#fff;box-shadow:0 4px 10px #00559644}
+.seat:disabled{opacity:1}
+.seat:focus-visible{outline:3px solid #e3b44c;outline-offset:2px}
+.seat-legend{display:flex;flex-wrap:wrap;gap:6px 16px;list-style:none;margin:14px 0 0;padding:12px 0 0;border-top:1px solid #edf3fa;font-size:11px;color:#5a7088}
+.seat-legend li{display:flex;align-items:center;gap:6px}
+.seat-legend i{display:inline-block;width:14px;height:14px;border-radius:4px 4px 2px 2px;border:1px solid #b9cde3;background:#fff}
+.seat-legend i.booked{background:#e6ebf0;border-color:transparent}
+.seat-legend i.yours{background:#fff3d9;border-color:#e3b44c}
+.seat-legend i.selected{background:#005596;border-color:#005596}
+dialog.wide{width:640px}
+.lab-view .session-row{margin-bottom:6px}
+.lab-view .session-row label{display:flex;flex-direction:column;gap:8px}
+.slot.partial,.legend i.partial{background:repeating-linear-gradient(135deg,#d6e4f3,#d6e4f3 3px,#edf2f8 3px,#edf2f8 6px)}
+.room-matches button small{font-size:10px;color:#5a7088;margin:0 0 0 4px}
+.access-detail .system-tag{background:#005596;color:#fff;font-weight:600}
+@media(max-width:560px){.seat-row{grid-template-columns:14px minmax(0,1fr)}.seat-group{grid-column:2}}
+@media(max-width:500px){.system-picker{padding:12px}.seat{height:40px}}
+@media(prefers-reduced-motion:reduce){.seat.free:hover{transform:none}}

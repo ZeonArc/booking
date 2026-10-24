@@ -3,8 +3,8 @@ import {PURPOSE_CATEGORIES} from '../shared/booking.js';
 import {accessLabel,durationLabel,summarizeAccess} from '../shared/access.js';
 import './access.css';
 
-export function BookingAccessFields({kind,practical}){
- const [type,setType]=useState(kind==='room'?'lab':'individual');
+export function BookingAccessFields({kind,practical,startIndividual=false}){
+ const [type,setType]=useState(kind==='room'&&!startIndividual?'lab':'individual');
  const [purpose,setPurpose]=useState('Practical class');
  const [count,setCount]=useState(String(practical?.students||1));
  return <fieldset className="access-fields"><legend>Who needs access?</legend>
@@ -30,7 +30,7 @@ export function BookingSessionFields({modal}){
 }
 
 export function AccessDetails({booking}){
- return <div className="access-detail"><span>{accessLabel(booking.access_type)}</span><span>{booking.student_count==null?'Student count not recorded':`${booking.student_count} student${booking.student_count===1?'':'s'}`}</span><span>{durationLabel(booking.start,booking.end)}</span>{booking.project_title&&<strong>Project: {booking.project_title}</strong>}</div>;
+ return <div className="access-detail"><span>{accessLabel(booking.access_type)}</span><span>{booking.student_count==null?'Student count not recorded':`${booking.student_count} student${booking.student_count===1?'':'s'}`}</span><span>{durationLabel(booking.start,booking.end)}</span>{booking.system_number&&<span className="system-tag">System {booking.system_number}</span>}{booking.project_title&&<strong>Project: {booking.project_title}</strong>}</div>;
 }
 
 export function AccessSummary({bookings,scope='Current selection'}){

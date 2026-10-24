@@ -8,7 +8,7 @@ Latest additions: [student access tracking](#student-access-tracking) (individua
 
 ## SRM Trichy room booking
 
-The **Lab rooms** catalogue now contains the campus inventory supplied by the user: CS Lab 1–6; AR/VR Lab; Mac Lab; EEE Lab; ECE Lab; IoT Lab; Mechanical Workshop; Woodworking Workshop; Physics Lab; Chemistry Lab 1–2; and six Biotechnology labs. Total: **22 rooms**. The six biotechnology specialization labels are proposed and editable: Molecular Biology, Microbiology, Biochemistry, Cell Culture, Genetics and Bioinformatics. Building numbers, capacities, workstation counts and room assignments have not been supplied and are not invented. Reference codes are application labels, not official room numbers.
+The **Lab rooms** catalogue now contains the campus inventory supplied by the user: CS Lab 1–6; AR/VR Lab; Mac Lab; EEE Lab; ECE Lab; IoT Lab; Mechanical Workshop; Woodworking Workshop; Physics Lab; Chemistry Lab 1–2; and six Biotechnology labs. Total: **22 rooms**. The six biotechnology specialization labels are proposed and editable: Molecular Biology, Microbiology, Biochemistry, Cell Culture, Genetics and Bioinformatics. Workstation counts were supplied for eight labs (see [Lab systems](#lab-systems-individual-access-by-system)). Building numbers, other capacities and room assignments have not been supplied and are not invented. Reference codes are application labels, not official room numbers.
 
 Choose **Lab rooms → Reserve**, enter date, times and a required **booking reason** (class/team and planned activity), then request approval. The booking type selector also allows equipment requests. Coordinators see the reason and requester before approving or rejecting; reasons and action notes remain visible in booking details. My bookings / All bookings combine rooms and equipment, with per-resource filtering.
 
@@ -108,7 +108,7 @@ npm test
 npm run build
 ```
 
-The API suite covers registration, invalid credentials, authorization, inventory management, time validation, overlap and adjacency, concurrent requests, approval rechecks, reasons, cancellation/rebooking, privacy, logout, and database reopen persistence. `tests/access.test.js` covers access validation, the practical-rescue headcount handoff, summary arithmetic, CSV columns, the additive migration and access-detail privacy. `npm test` reports 37 passing tests. It does not touch `data/lab.sqlite`.
+The API suite covers registration, invalid credentials, authorization, inventory management, time validation, overlap and adjacency, concurrent requests, approval rechecks, reasons, cancellation/rebooking, privacy, logout, and database reopen persistence. `tests/access.test.js` covers access validation, the practical-rescue headcount handoff, summary arithmetic, CSV columns, the additive migration and access-detail privacy. `tests/systems.test.js` covers per-system booking, whole-room blocking, the system map, privacy, migration and coordinator limits. `npm test` reports 48 passing tests. It does not touch `data/lab.sqlite`.
 
 Optional isolated browser smoke for sign-out (requires Edge and Playwright): `node presentation/check-sign-out.mjs <path-to-playwright>`. It checks the button at 1440 px, 390 px and 320 px widths, the 44 px touch target, failure and retry, keyboard activation and session revocation.
 
@@ -138,9 +138,22 @@ Optional isolated browser smoke for sign-out (requires Edge and Playwright): `no
 
 Open **Save My Practical** in the sidebar and click **Load demo example**. The explainable planner matches activity and class size to demonstration lab profiles and current booking availability. It returns up to six ranked alternatives, including nearby times, and prefills the ordinary booking request for coordinator approval. It never creates a booking merely by searching.
 
-Capacities and capabilities are explicitly unverified demo fixtures in `shared/practical.js`, keyed by room reference code. Unknown codes are excluded. Search hours are illustrative 08:00–18:00 IST, same date, in 30-minute offsets; one full class per room, no automatic batch splitting or equipment reservations. Guided submissions revalidate capacity/capability as well as the normal status/conflict checks. Profile management is code-based for this prototype, not an admin screen.
+Capabilities, and the capacity of labs without numbered systems, are explicitly unverified demo fixtures in `shared/practical.js`, keyed by room reference code. For labs with numbered systems the capacity is the supplied system count (70, 40 or 40), shown as source `systems`. Unknown codes are excluded. Search hours are illustrative 08:00–18:00 IST, same date, in 30-minute offsets; one full class per room, no automatic batch splitting or equipment reservations. Guided submissions revalidate capacity/capability as well as the normal status/conflict checks. Profile management is code-based for this prototype, not an admin screen.
 
 Presentation walkthrough, speaking notes and Q&A: [Save My Practical](docs/SAVE-MY-PRACTICAL.md). Screenshots: `docs/save-my-practical-desktop.png` and `docs/save-my-practical-mobile.png` (captured using an isolated in-memory demo database). Automated coverage: `tests/practical.test.js`; optional isolated browser smoke: `node presentation/check-practical.mjs <path-to-playwright>` (requires Edge and Playwright).
+
+## Lab systems: individual access by system
+
+The supplied workstation counts are built in: **CS Lab 1–6 have 70 systems each, AR/VR Lab has 40 and Mac Lab has 40**. The counts are stored per room (`systems`), so a coordinator can change them in **Manage labs** (0 means a lab has no numbered systems). Reducing the count below a system that has an active booking is refused.
+
+- **Individual access books one system, not the room.** In the booking form, choosing *Individual access* for one of these labs shows a ticket-style map: a "front of lab" bar and rows of numbered systems split by an aisle. Systems are *Available*, *Booked*, *Your booking* or *Selected*. Pick one; the request holds that system only, so other students can book the rest at the same time.
+- **View systems.** Each of these labs on **Lab rooms** has a *View systems* button. Pick a date and time, see which systems are free, select one and choose *Book system N*.
+- **Group and whole-lab bookings still reserve the entire room.** A lab / group booking is blocked while any system is booked for that time, and a system booking is blocked while the whole lab is reserved or in maintenance. Adjacent times never conflict.
+- **Other labs and instruments are unchanged.** Rooms without numbered systems keep whole-room individual access, and requests that omit the access fields still reserve the whole room.
+- **Where it shows up.** The dashboard timeline marks partly booked labs with a hatched slot (for example "19 of 70 systems booked"). The room finder lists labs that still have free systems, with the count. Booking lists, details and the CSV export show the system number.
+- **Privacy.** The system map says whether a system is free, booked or yours. It never says who booked it.
+
+Systems are not tracked as physical machines: a number is a seat in the lab, not an asset record, and a booking does not prove attendance.
 
 ## Student access tracking
 
